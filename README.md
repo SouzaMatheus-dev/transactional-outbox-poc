@@ -69,6 +69,14 @@ A ordem correta é: **1) Docker (infra)** → **2) Script SQL (banco e tabelas)*
 | **2** | Executar o **script SQL** na mão | Cria o banco `POC` e as tabelas (Initializations, Outbox, ReceivedEvents). A API não cria o banco sozinha; o script é obrigatório. |
 | **3** | Rodar as **aplicações** (API, Dispatcher, Consumer) | Com a base criada, use **inicialização múltipla** no Visual Studio (F5) ou três terminais com `dotnet run`. Funciona bem para estudo e debug. |
 
+Fluxo de execução (visão geral):
+
+```mermaid
+flowchart LR
+    A[Docker: SQL + Kafka] --> B[Script SQL: banco POC]
+    B --> C[Apps: API + Dispatcher + Consumer]
+```
+
 ---
 
 ### 1) Rodar a infra local (SQL Server + Kafka) via Docker
@@ -462,6 +470,12 @@ kubectl apply -f deploy/k8s/dashboard-admin.yaml
 - **Visual Studio**: abra a solution, configure **Multiple startup projects** (API + Worker.Dispatcher + Worker.Consumer) e pressione **F5**. Use breakpoints na API, no Dispatcher e no Consumer.
 - Passo a passo detalhado: veja **`postman/README.md`**.
 
+## Documentação
+
+A documentação segue **padrão profissional** e **abordagem de especialista**, com **diagramas em Mermaid** (flowchart, sequenceDiagram, erDiagram) para arquitetura, fluxos e infraestrutura. Detalhes em:
+
+- **[docs/ARQUITETURA-E-INFRA.md](docs/ARQUITETURA-E-INFRA.md)** — Arquitetura hexagonal, Transactional Outbox (sequência), modelo de dados (ER), topologia k8s, ConfigMap, SQL/Kafka e ordem de subida, todos com Mermaid.
+
 ## Licença e uso
 
-Projeto de estudo; pode ser usado e adaptado pelo time conforme necessidade.
+Projeto de estudo; pode ser usado e adaptado conforme necessidade.
