@@ -1,0 +1,50 @@
+# Build das imagens Docker da POC (API, Worker.Dispatcher, Worker.Consumer)
+# Dispara em push e pull_request na branch master
+
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/POC.Api/Dockerfile
+          push: false
+          tags: poc-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Worker Dispatcher image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/POC.Worker.Dispatcher/Dockerfile
+          push: false
+          tags: poc-worker-dispatcher:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Worker Consumer image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/POC.Worker.Consumer/Dockerfile
+          push: false
+          tags: poc-worker-consumer:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
