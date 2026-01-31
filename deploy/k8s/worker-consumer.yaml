@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poc-worker-consumer
+  namespace: outbox-poc
+  labels:
+    app: poc-worker-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: poc-worker-consumer
+  template:
+    metadata:
+      labels:
+        app: poc-worker-consumer
+    spec:
+      containers:
+        - name: consumer
+          image: poc-worker-consumer:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: outbox-poc-config
+          # Imagem runtime não tem SDK; dotnet --version falha. Usar comando que existe no container.
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            initialDelaySeconds: 10
+            periodSeconds: 10

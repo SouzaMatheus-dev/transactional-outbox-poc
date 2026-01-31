@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: outbox-poc-config
+  namespace: outbox-poc
+data:
+  # API escuta em 80 no container (aspnet image); 8080 removido para evitar conflito com probes
+  ASPNETCORE_URLS: "http://+:80"
+  # Connection string para pods no cluster (Default é lido primeiro pela API/workers)
+  ConnectionStrings__Default: "Server=sql-server,1433;Database=POC;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+  Sql__ConnectionString: "Server=sql-server,1433;Database=POC;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+  Kafka__BootstrapServers: "kafka:9092"
+  Kafka__TopicInitializationCreated: "poc.initialization.created"
+  Kafka__ConsumerGroup: "poc-consumer"
+  Dispatcher__PollIntervalSeconds: "5"
+  Dispatcher__BatchSize: "10"
+  Dispatcher__LockDurationSeconds: "60"

@@ -1,0 +1,91 @@
+{
+  "info": {
+    "name": "Outbox POC API",
+    "description": "Collection para testar a POC Transactional Outbox localmente.\n\nPré-requisito: API rodando (dotnet run ou Visual Studio) e infra no Docker (docker-compose.infra.yml) ou k8s.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "correlationId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Initializations",
+      "item": [
+        {
+          "name": "Create Initialization",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Gera CorrelationId para rastrear o fluxo (API -> Outbox -> Dispatcher -> Kafka -> Consumer)",
+                  "pm.collectionVariables.set('correlationId', pm.variables.replaceIn('{{$guid}}').slice(0, 16));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}",
+                "description": "Opcional: propaga no payload do evento para logs (Dispatcher/Consumer)"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"externalId\": \"EXT-{{$randomInt}}\"\n}"
+            },
+            "url": "{{baseUrl}}/initializations",
+            "description": "Cria uma nova Inicialização. Persiste o aggregate e o evento na Outbox na mesma transação. O Dispatcher publica no Kafka; o Consumer processa e persiste em ReceivedEvents."
+          }
+        },
+        {
+          "name": "Create Initialization (ID fixo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"externalId\": \"EXT-001\"\n}"
+            },
+            "url": "{{baseUrl}}/initializations",
+            "description": "Mesmo endpoint com ExternalId fixo para testes repetidos."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health / Info",
+      "item": [
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/swagger/index.html",
+            "description": "Abre a documentação Swagger da API (cole a URL no navegador)."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: outbox-poc
+  labels:
+    app.kubernetes.io/name: outbox-poc

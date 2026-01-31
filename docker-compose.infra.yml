@@ -1,0 +1,61 @@
+# Infraestrutura local: SQL Server + Kafka (Zookeeper + Kafka)
+# Uso: docker-compose -f docker-compose.infra.yml up -d
+
+version: '3.8'
+services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: YourStrong!Passw0rd
+    ports:
+      - "1433:1433"
+    # Aguarde ~30s apos up para o SQL ficar pronto
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  # Dois listeners: kafka:9092 para containers (Kafka UI, kafka-create-topic), localhost:29092 para apps no host
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"   # rede interna (Kafka UI usa kafka:9092)
+      - "29092:29092" # host: apps .NET usam localhost:29092
+
+  # Cria o tópico poc.initialization.created para o Consumer não falhar com "Unknown topic or partition"
+  kafka-create-topic:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "sleep 10 && kafka-topics --create --if-not-exists --topic poc.initialization.created --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 || true"
+    restart: "no"
+
+  # Provectus Kafka UI: interface web para inspecionar tópicos, consumer groups e mensagens
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: outbox-poc
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "8080:8080"
