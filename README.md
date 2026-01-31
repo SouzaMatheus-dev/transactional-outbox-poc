@@ -54,8 +54,8 @@ A gravação da entidade de domínio e do registro na Outbox ocorre na **mesma t
 
 - **.NET 8 SDK**
 - **Docker Desktop** (para SQL Server, Kafka e k3d)
-- **k3d** ([instalação](https://k3d.io/v5.x/docs/usage/install/)) — Kubernetes "dentro do Docker"
-- **kubectl**
+- **k3d** — Kubernetes "dentro do Docker". No Windows com [Chocolatey](https://chocolatey.org/): `choco install k3d`. Outras formas: [instalação oficial](https://k3d.io/v5.x/docs/usage/install/).
+- **kubectl** (geralmente instalado junto com o k3d pelo Chocolatey; ou `choco install kubernetes-cli`)
 
 ## Passo a passo de execução
 
@@ -160,7 +160,7 @@ Fluxo esperado nos logs:
 
 ### 5) Rodar tudo no Kubernetes (k3d)
 
-![Captura de tela 2026-01-31 003923](C:\Users\HOME\Pictures\Screenshots\Captura de tela 2026-01-31 003923.png)
+![Subida no k3d](docs/screenshots/01-k3d-subida.png)
 
 **Checklist subida (proxima vez):** 1) `.\deploy\k3d\up.ps1` → 2) quando pausar, `.\scripts\run-sql-in-k8s.ps1` → 3) Enter → 4) API em http://localhost:28080. SSMS: port-forward SQL e conecte em **127.0.0.1,21433**.
 
@@ -308,14 +308,15 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:28080/initializations" -Co
 
 ### API (POC.Api)
 
-- ![Captura de tela 2026-01-31 004010](C:\Users\HOME\Pictures\Screenshots\Captura de tela 2026-01-31 004010.png)
+![API](docs/screenshots/02-api.png)
+
 - **Função:** Recebe `POST /initializations`, valida o comando, cria o aggregate **Initialization** e persiste no SQL Server. Na **mesma transação**, insere um registro na tabela **Outbox** com o payload JSON do evento.
 - **Performance:** Cada request faz uma única transação SQL (INSERT em Initializations + INSERT em Outbox). A latência depende do round-trip ao SQL Server; tipicamente dezenas de milissegundos. Não publica direto no Kafka — o Dispatcher é quem faz isso de forma assíncrona, evitando acoplamento e falhas de rede no request.
 - **Observabilidade:** Serilog com CorrelationId (header `X-Correlation-Id`); o mesmo ID é gravado no payload da Outbox para rastreio ponta a ponta.
 
 ### Worker Dispatcher (POC.Worker.Dispatcher)
 
-![Captura de tela 2026-01-31 003950](C:\Users\HOME\Pictures\Screenshots\Captura de tela 2026-01-31 003950.png)
+![Worker Dispatcher](docs/screenshots/03-dispatcher.png)
 
 - **Função:** Em loop, consulta a tabela **Outbox** em lote (registros com `ProcessedAt` nulo e lock liberado), aplica **lock otimista** (LockedUntil, LockId), publica cada registro no Kafka (tópico `poc.initialization.created`) e, em caso de sucesso, marca `ProcessedAt`. Em falha, incrementa `Attempts`, grava `LastError` e libera o lock para retry posterior.
 - **Performance:** Poll configurável (`Dispatcher:PollIntervalSeconds`). O tamanho do lote e o intervalo definem throughput e atraso. Um único Dispatcher processa centenas a milhares de eventos por minuto conforme capacidade do Kafka e do SQL. Vários replicas podem rodar em paralelo (lock otimista evita processar o mesmo registro duas vezes).
@@ -323,7 +324,7 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:28080/initializations" -Co
 
 ### Worker Consumer (POC.Worker.Consumer)
 
-![Captura de tela 2026-01-31 003939](C:\Users\HOME\Pictures\Screenshots\Captura de tela 2026-01-31 003939.png)
+![Worker Consumer](docs/screenshots/04-consumer.png)
 
 - **Função:** Inscreve-se no tópico **poc.initialization.created** (consumer group `poc-consumer`), consome mensagens, loga e opcionalmente persiste em **ReceivedEvents** para auditoria.
 - **Performance:** Consumo em tempo real; throughput limitado pelo Kafka e pelo commit do consumer. Escala horizontalmente aumentando partições do tópico e instâncias no mesmo consumer group.
@@ -336,7 +337,7 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:28080/initializations" -Co
 
 ### Kafka
 
-![Captura de tela 2026-01-31 003958](C:\Users\HOME\Pictures\Screenshots\Captura de tela 2026-01-31 003958.png)
+![Kafka](docs/screenshots/05-kafka.png)
 
 - **Função:** Barramento de eventos. O Dispatcher publica; o Consumer consome. Tópico único nesta POC: **poc.initialization.created**.
 - **Performance:** Alta throughput e retenção configurável. Producer com acks e idempotência reduz duplicatas; consumer com commit após processamento garante at-least-once.
